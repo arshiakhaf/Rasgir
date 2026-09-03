@@ -37,7 +37,11 @@ object Screens {
             openB.setOnClickListener {
                 val err = Vault.unlock(f.edit.text.toString())
                 if (err != null) errTxt.text = err
-                else { errTxt.text = ""; f.edit.text.clear(); h.show(Scr.HOME) }
+                else {
+                    errTxt.text = ""
+                    f.edit.text.clear()
+                    h.show(if (h.pendingRequest.isNotEmpty()) Scr.ISSUE else Scr.HOME)
+                }
             }
             col.addView(openB)
             val alt = btn(a, "وارد کردن بسته کلید (بازیابی از پشتیبان)", filled = false, small = true)
@@ -66,7 +70,8 @@ object Screens {
             val importB = btn(a, "وارد کردن و باز کردن")
             importB.setOnClickListener {
                 val err = Vault.importAndUnlock(passF.edit.text.toString(), bundleF.edit.text.toString())
-                if (err != null) errTxt.text = err else h.show(Scr.HOME)
+                if (err != null) errTxt.text = err
+                else h.show(if (h.pendingRequest.isNotEmpty()) Scr.ISSUE else Scr.HOME)
             }
             col.addView(importB)
             val pasteB = btn(a, "چسباندن بسته کلید از کلیپ‌بورد", filled = false, small = true)

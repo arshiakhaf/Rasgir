@@ -126,8 +126,38 @@ class MainActivity : Activity(), Host {
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         })
         content.removeAllViews()
+        if (!Lic.isActivated()) {
+            content.addView(licGateView(), FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+            return
+        }
         content.addView(Flow.build(this, current), FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+    }
+
+    /** full licence gate: without a valid device-bound licence the operator
+     *  screens are not reachable (spec §10) */
+    private fun licGateView(): android.view.View {
+        val col = LinearLayout(this)
+        col.orientation = LinearLayout.VERTICAL
+        col.setPadding(dp(20), dp(26), dp(20), dp(20))
+        col.setBackgroundColor(Pal.BG)
+        col.addView(tv(this, "رأس‌گیر چک", 24f, Pal.GREEN_DK, bold = true))
+        col.addView(vspace(this, 6f))
+        col.addView(tv(this,
+            "این برنامه فقط با مجوز معتبر همین دستگاه باز می‌شود. مجوز به کلید امن اندروید قفل است و روی دستگاه دیگر کار نمی‌کند.",
+            14f, Pal.INK2))
+        col.addView(vspace(this, 14f))
+        val err = Lic.lastError()
+        if (err != null) col.addView(tv(this, "⚠️ $err", 13.5f, Pal.RED, bold = true))
+        val go = btn(this, "رفتن به فعال‌سازی")
+        go.setOnClickListener { startActivity(Intent(this, ActivationActivity::class.java)) }
+        col.addView(go)
+        val note = tv(this,
+            "کد درخواست دستگاه را برای صاحب برنامه بفرستید و مجوز دریافتی را وارد کنید.",
+            12.5f, Pal.INK2)
+        col.addView(note)
+        return col
     }
 
     // ---------- activation gate ----------
