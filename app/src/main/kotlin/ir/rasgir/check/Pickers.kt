@@ -9,6 +9,7 @@ import android.text.TextWatcher
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.view.inputmethod.EditorInfo
 import android.widget.ArrayAdapter
 import android.widget.EditText
 import android.widget.LinearLayout
@@ -102,11 +103,15 @@ object JalaliPicker {
 }
 
 /**
- * Amount input with live three-digit grouping (Tooman). Typed digits are kept;
- * separators are re-inserted while typing; Latin digits only, per spec.
+ * Amount input with live three-digit grouping (Tooman) while typing.
+ * The parsed value is committed once on focus-loss / IME-Done so rebuilds only
+ * happen when the user finishes an edit. Latin digits only, per spec.
  */
 object MoneyField {
-    fun build(c: Context, label: String, initial: Long? = null, onValid: ((Long) -> Unit)? = null): LinearLayout {
+
+    class Built(val wrap: LinearLayout, val commit: () -> Long)
+
+    fun build(c: Context, label: String, initial: Long? = null, onCommit: ((Long) -> Unit)? = null): Built {
         val wrap = LinearLayout(c)
         wrap.orientation = LinearLayout.VERTICAL
         wrap.addView(tv(c, label, 13f, Pal.INK2, bold = true))
@@ -114,6 +119,8 @@ object MoneyField {
         et.setTextColor(Pal.INK)
         et.setTextSize(17f)
         et.inputType = InputType.TYPE_CLASS_NUMBER
+        et.imeOptions = if (onCommit != null) EditorInfo.IME_ACTION_DONE else EditorInfo.IME_ACTION_NEXT
+        et.setSingleLine(true)
         val g = android.graphics.drawable.GradientDrawable()
         g.cornerRadius = c.dp(10).toFloat()
         g.setColor(Pal.CARD)
@@ -122,13 +129,26 @@ object MoneyField {
         et.setPadding(c.dp(12), c.dp(10), c.dp(12), c.dp(10))
         wrap.addView(et)
         var self = false
+
+        fun commitNow() {
+            val v = ir.rasgir.core.Money.parseToman(et.text.toString()) ?: 0L
+            if (onCommit != null) onCommit(v)
+            else if (v > 0) et.setText(Money.formatToman(v))
+        }
+
+        et.setOnFocusChangeListener { _, has ->
+            if (!has) commitNow()
+        }
+        et.setOnEditorActionListener { _, _, _ ->
+            commitNow()
+            true
+        }
         et.addTextChangedListener(object : TextWatcher {
             override fun afterTextChanged(s: Editable?) {
                 if (self || s == null) return
                 val digits = s.toString().filter { it.isDigit() }
-                if (digits.isEmpty()) { if (onValid != null) onValid(0L); return }
+                if (digits.isEmpty()) return
                 val v = digits.toLongOrNull() ?: return
-                if (v > 0) onValid?.invoke(v)
                 val pretty = Money.formatToman(v)
                 if (pretty != s.toString()) {
                     self = true
@@ -141,6 +161,6 @@ object MoneyField {
             override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c0: Int) {}
         })
         if (initial != null && initial > 0) et.setText(Money.formatToman(initial))
-        return wrap
+        return Built(wrap) { Money.parseToman(et.text.toString()) ?: 0L }
     }
 }

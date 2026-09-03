@@ -551,17 +551,24 @@ object ScheduleEngine {
                 { i -> nl[i].lockAmount }, { i -> nl[i].lockDay })
         }
 
-        /** Mode 1: move every free check by [shiftDays] (unlocked days only). */
+        /** Mode 1: move every free check by [shiftDays] (unlocked days only).
+         *  Applied dates become fixed (day-locked) — exactly what a manual
+         *  «move the dates» tool means — then amounts re-heal to the exact
+         *  invariants without the engine pulling the dates back. */
         fun shiftFree(plan: CheckPlan, shiftDays: Long): CheckPlan {
-            val shifted = plan.checks.map { c -> if (c.lockDay) c else c.withDay(c.day + shiftDays) }
+            val shifted = plan.checks.map { c ->
+                if (c.lockDay) c else c.withDay(c.day + shiftDays).copy(lockDay = true)
+            }
             return heal(plan.copy(checks = shifted))
         }
 
-        /** Mode 2 focus: like shiftFree but weights the whole movement on one
-         *  chosen check; equivalently shift all free checks by shiftDays then
-         *  heal — provided for API clarity. */
+        /** Mode 2 focus: anchor check [index] onto [targetDay] (its date
+         *  becomes fixed), then re-heal every other free check so the two
+         *  exact invariants still hold around that anchor. */
         fun focusOn(plan: CheckPlan, index: Int, targetDay: Long): CheckPlan {
-            val changed = plan.checks.mapIndexed { i, c -> if (i == index) c.withDay(targetDay) else c }
+            val changed = plan.checks.mapIndexed { i, c ->
+                if (i == index) c.withDay(targetDay).copy(lockDay = true) else c
+            }
             return heal(plan.copy(checks = changed))
         }
 

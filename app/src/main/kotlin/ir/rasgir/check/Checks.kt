@@ -76,13 +76,19 @@ object Checks {
                     row.addView(head)
 
                     val amtW = MoneyField.build(c, "مبلغ (تومان)", chk.amountToman) { v ->
-                        if (v > 0 && v != (wp.plan?.checks?.getOrNull(idx)?.amountToman ?: 0L)) {
+                        if (v <= 0) { h.toast("مبلغ چک باید بیشتر از صفر باشد"); rebuildRows(); return@build }
+                        val cur = wp.plan?.checks?.getOrNull(idx)?.amountToman ?: 0L
+                        if (v != cur) {
+                            val debt = wp.debt()
+                            if (debt.signum() > 0 && BigInteger.valueOf(v) >= debt) {
+                                h.toast("مبلغ یک چک نمی‌تواند از کل بدهی بیشتر باشد"); rebuildRows(); return@build
+                            }
                             val locked = wp.plan?.checks?.get(idx)?.lockAmount == true
                             if (locked) {
                                 val act = c as? android.app.Activity
                                 if (act != null) {
                                     act.ask("این مبلغ قفل است", "ویرایش انجام و قفل حفظ شود؟",
-                                        "بله، قفل بماند", "قفل برداشته شود") {
+                                        "بله، قفل بماند", "انصراف") {
                                         wp.manualAmount(h.today, idx, v)
                                         refreshStatus(); rebuildRows(); h.save()
                                     }
@@ -93,7 +99,7 @@ object Checks {
                             refreshStatus(); rebuildRows(); h.save()
                         }
                     }
-                    row.addView(amtW)
+                    row.addView(amtW.wrap)
                     val dTxt = tv(c, Jalali.format(chk.day), 16f, Pal.GREEN_DK, bold = true)
                     dTxt.isClickable = true
                     dTxt.text = "تاریخ: ${Jalali.format(chk.day)}"
@@ -210,7 +216,7 @@ object Checks {
             val heavyWrap = MoneyField.build(c, "افزایش مبلغ (تومان)", null) { v -> heavyAmount = v }
             heavyCard.addView(hIdxTxt)
             heavyCard.addView(hSeek)
-            heavyCard.addView(heavyWrap)
+            heavyCard.addView(heavyWrap.wrap)
             val heavyB = btn(c, "اعمال", small = true)
             heavyB.setOnClickListener {
                 val dv = wp.compute() ?: return@setOnClickListener
@@ -276,7 +282,7 @@ object Checks {
 
             val ppWrap = MoneyField.build(c, "مبلغ پیش‌پرداخت (تومان)",
                 if (wp.prepayToman > 0) wp.prepayToman else null) { v -> ppAmount = v }
-            ppCard.addView(ppWrap)
+            ppCard.addView(ppWrap.wrap)
             val dateTxt = tv(c, "", 15f, Pal.GREEN_DK, bold = true)
             fun refreshDateText() {
                 val d = if (ppDay > 0) ppDay else wp.effectivePrepayDay(h.today)

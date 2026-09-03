@@ -188,7 +188,7 @@ object Flow {
                     val amtW = MoneyField.build(c, "مبلغ (تومان)", inv.amountToman) { v ->
                         if (v > 0) { wp.invoices[idx] = inv.copy(amountToman = v); refreshTotal(); h.save() }
                     }
-                    cols.addView(amtW)
+                    cols.addView(amtW.wrap)
                     val dateTxt = tv(c, "", 15f, Pal.GREEN_DK, bold = true)
                     fun fmt(d: Long) = if (d > 0) "تاریخ خرید: ${Jalali.format(d)}" else "تاریخ خرید را انتخاب کنید"
                     dateTxt.text = fmt(inv.buyDay)
