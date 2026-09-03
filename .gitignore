@@ -19,3 +19,6 @@ scratch/
 # --- Keys are delivered under deliverables/keys explicitly (see docs) ---
 # (keystores are intentionally committed there as part of the delivery bundle;
 #  protect this repository accordingly.)
+
+# --- delivery secrets: NEVER commit (hand over via workspace archive) ---
+deliverables/keys/

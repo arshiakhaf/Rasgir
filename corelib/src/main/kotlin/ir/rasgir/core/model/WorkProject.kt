@@ -32,6 +32,18 @@ class WorkProject(val id: String) {
     var colorIdx: Int = 0
     var createdAtDay: Long = 0
 
+    /** start a fresh customer while keeping the same object identity */
+    fun resetCustomer() {
+        customerName = ""
+        imageTitle = "شرایط تسویه حساب"
+        colorIdx = 0
+        invoices.clear()
+        checkCount = 3
+        prepayToman = 0L
+        prepayDay = 0L
+        plan = null
+    }
+
     data class DraftInvoice(val amountToman: Long, val buyDay: Long, val rasDays: Long) {
         fun toCore(): Invoice = Invoice(amountToman, buyDay, rasDays)
     }
@@ -73,10 +85,6 @@ class WorkProject(val id: String) {
     }
 
     var checkCount: Int = 3
-        set(value) {
-            val nv = value.coerceIn(1, 40)
-            if (nv != field) { field = nv; plan = null }
-        }
 
     /** applied prepayment — never set silently; only [applyPrepay] changes it */
     var prepayToman: Long = 0L
@@ -90,6 +98,23 @@ class WorkProject(val id: String) {
     fun hasDebt(): Boolean = compute() != null
 
     fun effectivePrepayDay(todayDay: Long): Long = if (prepayDay > 0) prepayDay else todayDay
+
+    /** raw restore used only by persistence code (no auto-apply semantics) */
+    fun restorePrepay(amountToman: Long, day: Long) {
+        prepayToman = amountToman
+        prepayDay = day
+        plan = null
+    }
+
+    /** restore an exact persisted plan (amounts/days/locks) and re-heal it */
+    fun replaceChecks(todayDay: Long, checks: List<Check>) {
+        if (checks.isEmpty()) return
+        val p = ensurePlan(todayDay) ?: return
+        val ed = editor(todayDay) ?: return
+        val base = p.copy(checks = checks)
+        plan = ed.heal(base)
+        checkCount = plan?.checks?.size ?: checkCount
+    }
 
     /** structural regeneration (invoice set / check count / fresh project) */
     fun regenerate(todayDay: Long) {
@@ -114,6 +139,52 @@ class WorkProject(val id: String) {
     private fun editor(todayDay: Long): ScheduleEngine.Editor? {
         val dv = compute() ?: return null
         return ScheduleEngine.Editor(dv.debt, dv.targetWeighted, todayDay)
+    }
+
+    /** manual amount/day edit: the edited dimension becomes (temporarily) fixed
+     *  for the exact refit so the operator's number is honoured; the caller then
+     *  decides whether to keep it permanently locked (spec §5: manual edits of a
+     *  locked part ask whether to lock). */
+    fun manualAmount(todayDay: Long, index: Int, newAmount: Long) {
+        val p = plan ?: return
+        val ed = editor(todayDay) ?: return
+        plan = ed.manualChange(p, index, newAmount = newAmount)
+    }
+
+    fun manualDay(todayDay: Long, index: Int, newDay: Long) {
+        val p = plan ?: return
+        val ed = editor(todayDay) ?: return
+        plan = ed.manualChange(p, index, newDay = newDay)
+    }
+
+    /** tool mode 1 — shift every free (unlocked-day) check by [deltaDays] */
+    fun shiftFreeDays(todayDay: Long, deltaDays: Long) {
+        val p = plan ?: return
+        val ed = editor(todayDay) ?: return
+        plan = ed.shiftFree(p, deltaDays)
+    }
+
+    /** tool mode 2 — put the selected check on [targetDay] (its date heals freely) */
+    fun focusCheckOnDay(todayDay: Long, index: Int, targetDay: Long) {
+        val p = plan ?: return
+        val ed = editor(todayDay) ?: return
+        plan = ed.focusOn(p, index, targetDay)
+    }
+
+    /** tool mode 3 — make check [index] heavier by [deltaToman]; rest lighten */
+    fun heavierCheck(todayDay: Long, index: Int, deltaToman: Long) {
+        val p = plan ?: return
+        val ed = editor(todayDay) ?: return
+        plan = ed.makeHeavier(p, index, deltaToman)
+    }
+
+    /** change the number of checks, re-healing the exact invariants */
+    fun resizeChecks(todayDay: Long, newCount: Int) {
+        val p = plan ?: return
+        val ed = editor(todayDay) ?: return
+        val n = newCount.coerceIn(1, 40)
+        plan = ed.setCount(p, n)
+        checkCount = n
     }
 
     fun editPlan(todayDay: Long, transform: (CheckPlan) -> CheckPlan) {

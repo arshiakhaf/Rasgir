@@ -6,7 +6,7 @@
         android:maxSdkVersion="28" />
 
     <application
-        android:label="رأس‌گیر چک"
+        android:label="مدیر مجوز رأس‌گیر چک"
         android:icon="@drawable/ic_launcher"
         android:supportsRtl="true"
         android:allowBackup="false"
@@ -20,13 +20,6 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-        </activity>
-        <activity android:name=".HistoryActivity" android:exported="false"
-            android:configChanges="orientation|screenSize|keyboardHidden|uiMode" />
-        <activity android:name=".SettingsActivity" android:exported="false"
-            android:configChanges="orientation|screenSize|keyboardHidden|uiMode" />
-        <activity android:name=".ActivationActivity" android:exported="true"
-            android:configChanges="orientation|screenSize|keyboardHidden|uiMode">
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -34,10 +27,9 @@
             </intent-filter>
         </activity>
 
-        <!-- local provider: hands file:// content URIs to the share sheet -->
         <provider
-            android:name=".ShareProvider"
-            android:authorities="ir.rasgir.check.files"
+            android:name=".FileProv"
+            android:authorities="ir.rasgir.manager.files"
             android:exported="true"
             android:grantUriPermissions="true" />
     </application>
